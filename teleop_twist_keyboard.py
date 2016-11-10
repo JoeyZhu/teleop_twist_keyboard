@@ -101,7 +101,6 @@ if __name__=="__main__":
 	z = 0
 	th = 0
 	status = 0
-	manual_mode = 1
 	try:
 		print msg
 		print vels(speed,turn)
@@ -129,21 +128,19 @@ if __name__=="__main__":
 				if (key == 'd'):
 					ret = manual_cmd_client(1)
 					if(ret):	#service return success or not
-						manual_mode = 1
+						print "manual override set succeed!"
 				if (key == 'a'):
 					ret = manual_cmd_client(0)	#todo: check return value
 					if(ret):
-						manual_mode = 0
+						print "automatic contrl set succeed!"
 				if (key == '\x03'):
 					break
 
 			twist = Twist()
 			twist.linear.x = x*speed; twist.linear.y = y*speed; twist.linear.z = z*speed;
-			twist.angular.x = 0; twist.angular.y = 0; twist.angular.z = th*turn
-			if(manual_mode):			
-				pub_manual.publish(twist)
-			else:
-				pub.publish(twist)
+			twist.angular.x = 0; twist.angular.y = 0; twist.angular.z = th*turn		
+			pub_manual.publish(twist)
+			pub.publish(twist)
 
 	except:
 		print e
