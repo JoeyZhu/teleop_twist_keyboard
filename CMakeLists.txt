@@ -12,3 +12,7 @@ catkin_install_python(PROGRAMS
    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+)

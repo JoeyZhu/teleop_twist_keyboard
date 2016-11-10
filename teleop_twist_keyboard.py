@@ -5,6 +5,7 @@ import rospy
 from geometry_msgs.msg import Twist
 
 import sys, select, termios, tty
+import std_srvs.srv
 
 msg = """
 Reading from the keyboard  and Publishing to Twist!
@@ -61,6 +62,19 @@ speedBindings={
 		'e':(1,1.1),
 		'c':(1,.9),
 	      }
+#bot control service client
+def manual_cmd_client(x):
+    print "manual request"
+    rospy.wait_for_service('/serial_bot_node/manual_cmd_srv', timeout=5)
+    try:
+        print "try"
+        manual_cmd_srv = rospy.ServiceProxy('/serial_bot_node/manual_cmd_srv',std_srvs.srv.SetBool())
+        print "passed"
+        ret = manual_cmd_srv(x)
+    except rospy.ServiceException, e_bot:
+        print "Service call failed: %s"%e_bot
+    return ret
+
 
 def getKey():
 	tty.setraw(sys.stdin.fileno())
@@ -77,6 +91,7 @@ if __name__=="__main__":
     	settings = termios.tcgetattr(sys.stdin)
 	
 	pub = rospy.Publisher('cmd_vel', Twist, queue_size = 1)
+	pub_manual = rospy.Publisher('cmd_vel_manual',Twist,queue_size = 1)
 	rospy.init_node('teleop_twist_keyboard')
 
 	speed = rospy.get_param("~speed", 0.5)
@@ -86,12 +101,13 @@ if __name__=="__main__":
 	z = 0
 	th = 0
 	status = 0
-
+	manual_mode = 1
 	try:
 		print msg
 		print vels(speed,turn)
 		while(1):
 			key = getKey()
+
 			if key in moveBindings.keys():
 				x = moveBindings[key][0]
 				y = moveBindings[key][1]
@@ -110,13 +126,24 @@ if __name__=="__main__":
 				y = 0
 				z = 0
 				th = 0
+				if (key == 'd'):
+					ret = manual_cmd_client(1)
+					if(ret):	#service return success or not
+						manual_mode = 1
+				if (key == 'a'):
+					ret = manual_cmd_client(0)	#todo: check return value
+					if(ret):
+						manual_mode = 0
 				if (key == '\x03'):
 					break
 
 			twist = Twist()
 			twist.linear.x = x*speed; twist.linear.y = y*speed; twist.linear.z = z*speed;
 			twist.angular.x = 0; twist.angular.y = 0; twist.angular.z = th*turn
-			pub.publish(twist)
+			if(manual_mode):			
+				pub_manual.publish(twist)
+			else:
+				pub.publish(twist)
 
 	except:
 		print e
