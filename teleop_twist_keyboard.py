@@ -29,6 +29,9 @@ anything else : stop
 q/z : increase/decrease max speeds by 10%
 w/x : increase/decrease only linear speed by 10%
 e/c : increase/decrease only angular speed by 10%
+a/d : auto / manual control
+
+default control mode: automatic
 
 CTRL-C to quit
 """
@@ -64,12 +67,9 @@ speedBindings={
 	      }
 #bot control service client
 def manual_cmd_client(x):
-    print "manual request"
-    rospy.wait_for_service('/serial_bot_node/manual_cmd_srv', timeout=5)
+    rospy.wait_for_service('/manual_cmd_srv', timeout=5)
     try:
-        print "try"
-        manual_cmd_srv = rospy.ServiceProxy('/serial_bot_node/manual_cmd_srv',std_srvs.srv.SetBool())
-        print "passed"
+        manual_cmd_srv = rospy.ServiceProxy('/manual_cmd_srv',std_srvs.srv.SetBool())
         ret = manual_cmd_srv(x)
     except rospy.ServiceException, e_bot:
         print "Service call failed: %s"%e_bot
@@ -90,7 +90,8 @@ def vels(speed,turn):
 if __name__=="__main__":
     	settings = termios.tcgetattr(sys.stdin)
 	
-	pub = rospy.Publisher('cmd_vel', Twist, queue_size = 1)
+	pub = rospy.Publisher('cmd_vel_raw', Twist, queue_size = 1)
+	#pub_safe = rospy.Publisher('cmd_vel_raw', Twist, queue_size = 1)
 	pub_manual = rospy.Publisher('cmd_vel_manual',Twist,queue_size = 1)
 	rospy.init_node('teleop_twist_keyboard')
 
@@ -101,6 +102,7 @@ if __name__=="__main__":
 	z = 0
 	th = 0
 	status = 0
+	auto_manual = 1
 	try:
 		print msg
 		print vels(speed,turn)
@@ -128,20 +130,23 @@ if __name__=="__main__":
 				if (key == 'd'):
 					ret = manual_cmd_client(1)
 					if(ret):	#service return success or not
-						print "manual override set succeed!"
+						print "manual override set succeed!" # request driver node to reset cmd_vel
+						auto_manual = 0
 				if (key == 'a'):
 					ret = manual_cmd_client(0)	#todo: check return value
 					if(ret):
-						print "automatic contrl set succeed!"
+						print "automatic control set succeed!"
+						auto_manual = 1
 				if (key == '\x03'):
 					break
 
 			twist = Twist()
 			twist.linear.x = x*speed; twist.linear.y = y*speed; twist.linear.z = z*speed;
-			twist.angular.x = 0; twist.angular.y = 0; twist.angular.z = th*turn		
-			pub_manual.publish(twist)
-			pub.publish(twist)
-
+			twist.angular.x = 0; twist.angular.y = 0; twist.angular.z = th*turn
+			if(auto_manual):
+    				pub.publish(twist)
+			else:
+    				pub_manual.publish(twist)
 	except:
 		print e
 
